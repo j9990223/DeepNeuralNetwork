@@ -39,7 +39,8 @@ for i in range(num_train_pts):
     x = x/np.linalg.norm(x)
     Normal[i]=x
 y_train = y_train + Normal*Noise_size
-    
+ 
+#Define the denominator for the relative loss function
 Sobolev_train = np.zeros(shape = (num_train_pts,1))
 for i in range(y_train.shape[0]):
     Sobolev_train[i] = np.linalg.norm(np.matmul(Gram,y_train[i].reshape(121,1)))
@@ -50,6 +51,7 @@ for i in range(y_test.shape[0]):
     Sobolev_test[i] = np.linalg.norm(np.matmul(Gram,y_test[i].reshape(121,1)))
 Sobolev_test = np.array(Sobolev_test).reshape(1,num_test_pts)
 
+#Transpose the matrices into the right shape and set them to the same precision
 x_test=np.transpose(x_test).astype(precision)
 x_train=np.transpose(x_train).astype(precision)
 y_train=np.transpose(y_train).astype(precision) 
