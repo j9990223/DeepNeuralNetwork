@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random as random
 
+#Define the important parameters
 precision = np.float32
 num_train_pts = 1000
 num_test_pts = 5000
@@ -19,16 +20,19 @@ p = 1
 Noise_size = 0
 corruption = 0
 
+#Load the data
 x_train = np.load("X_train.npy")
 y_train = np.load("Y_train.npy") 
 x_test = np.load("X_test.npy")
 y_test = np.load("Y_test.npy")
 Gram = np.load("G.npy")
 
+#Add sparse corruption
 Sparse =  random.sample(range(num_train_pts),corruption)
 for randomsample in Sparse:
     y_train[randomsample] = y_train[randomsample] + np.random.normal(scale = 100, size = 121)
-    
+
+#Add Gaussian noise
 Normal = np.zeros(shape = (num_train_pts,output_dim))
 for i in range(num_train_pts):
     x = np.random.standard_normal(output_dim)
@@ -54,6 +58,7 @@ y_test=np.transpose(y_test).astype(precision)
 zeros = np.zeros(shape = (batch_size))
 zeros2 = np.zeros(shape=(num_test_pts))
 
+#Defines a single layer of the deep neural network
 def default_block(x, layer, dim1, dim2, weight_bias_initializer, rho):
     W = tf.compat.v1.get_variable(name='l' + str(layer) + '_W', shape=[dim1, dim2],
                                     initializer=weight_bias_initializer, dtype=precision)
@@ -63,7 +68,7 @@ def default_block(x, layer, dim1, dim2, weight_bias_initializer, rho):
 
     return rho(tf.matmul(W, x) + b)
 
-
+#Defines the entire neural network
 def funcApprox(x, depth, input_dim, output_dim, hidden_dim):
     print('Constructing the tensorflow nn graph')
 
@@ -97,6 +102,7 @@ def funcApprox(x, depth, input_dim, output_dim, hidden_dim):
         z = tf.math.add(tf.linalg.matmul(out_v, x, name='output_vx'), out_b, name='output')
         return z
 
+#Create batches for training
 def get_batch(X_in, Y_in,Sobolev_train,batch_size):
     X_cols = X_in.shape[0]
     Y_cols = Y_in.shape[0]
@@ -109,12 +115,13 @@ def get_batch(X_in, Y_in,Sobolev_train,batch_size):
               Sobolev_train.take(range(idx,idx+batch_size), axis = 1, mode = 'wrap').reshape(1, batch_size)
 
         
-
+#Resets the graph to default and enable placeholder variables
 tf.compat.v1.reset_default_graph()
 tf.compat.v1.disable_eager_execution()
 
 with tf.compat.v1.variable_scope('Graph',reuse=tf.compat.v1.AUTO_REUSE) as scope:
 
+    #Create placeholder variables
     x = tf.compat.v1.placeholder(precision, shape=[input_dim, None], name='input')
     y_true = tf.compat.v1.placeholder(precision, shape=[output_dim, None], name='y_true')
     x_t = tf.compat.v1.placeholder(precision, shape=[input_dim, None], name='x_test')
@@ -125,7 +132,9 @@ with tf.compat.v1.variable_scope('Graph',reuse=tf.compat.v1.AUTO_REUSE) as scope
 
     y = funcApprox(x, depth, input_dim,output_dim, hidden_dim)
     z = funcApprox(x_t, depth, input_dim,output_dim, hidden_dim)   
-    with tf.compat.v1.variable_scope('Loss'):    
+    with tf.compat.v1.variable_scope('Loss'):  
+        
+        #Define the loss functions
         loss = tf.compat.v1.losses.absolute_difference(tf.math.pow(tf.linalg.norm(tf.math.divide(
                tf.linalg.matmul(Gram,y-y_true),Sobolev_train_b),axis =0),p),zeros)
         test_loss = tf.compat.v1.losses.absolute_difference(tf.linalg.norm(tf.math.divide(
@@ -137,6 +146,7 @@ with tf.compat.v1.variable_scope('Graph',reuse=tf.compat.v1.AUTO_REUSE) as scope
     losses = []
     testloss = []
 
+    #Session to train the neural network
     with tf.compat.v1.Session() as sess:
         sess.run(tf.compat.v1.global_variables_initializer())
         for i in range(epochs):
@@ -154,6 +164,8 @@ with tf.compat.v1.variable_scope('Graph',reuse=tf.compat.v1.AUTO_REUSE) as scope
         y_res = sess.run([y], feed_dict = {x: x_test})
         y_NN = y_res[0]
 print('done')
+
+#Graph the evolution of the loss functions
 x = range(len(losses))
 plt.title(corruption)
 plt.loglog(x,losses)
